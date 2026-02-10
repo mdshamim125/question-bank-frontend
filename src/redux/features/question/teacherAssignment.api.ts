@@ -1,10 +1,14 @@
 // src/redux/features/teacherSubject/teacherSubject.api.ts
 import { baseApi } from "@/redux/baseApi";
-import type { IResponse, ITeacherSubjectAssignment } from "@/type";
+import type { IResponse } from "@/type";
+import type { ITeacherSubjectAssignment } from "@/type/question/teacherSubject.type";
 
 export const teacherSubjectApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    assignTeacher: builder.mutation<IResponse<ITeacherSubjectAssignment>, Partial<ITeacherSubjectAssignment>>({
+    assignTeacher: builder.mutation<
+      IResponse<ITeacherSubjectAssignment>,
+      Partial<ITeacherSubjectAssignment>
+    >({
       query: (payload) => ({
         url: "/teacher-subjects",
         method: "POST",
@@ -12,21 +16,28 @@ export const teacherSubjectApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["TeacherSubject"],
     }),
-    getAllAssignments: builder.query<IResponse<ITeacherSubjectAssignment[]>, void>({
+    getAllAssignments: builder.query<
+      IResponse<ITeacherSubjectAssignment[]>,
+      void
+    >({
       query: () => ({
         url: "/teacher-subjects",
         method: "GET",
       }),
       providesTags: ["TeacherSubject"],
     }),
-    removeAssignment: builder.mutation<IResponse<null>, { teacherId: string; subjectId: string }>({
-      query: ({ teacherId, subjectId }) => ({
-        url: `/teacher-subjects/${teacherId}/${subjectId}`,
+    removeAssignment: builder.mutation<IResponse<null>, number>({
+      query: (id) => ({
+        url: `/teacher-subjects/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["TeacherSubject"],
     }),
-    getTeacherSubjectsByTeacherId: builder.query<IResponse<ITeacherSubjectAssignment[]>, string>({
+
+    getTeacherSubjectsByTeacherId: builder.query<
+      IResponse<ITeacherSubjectAssignment[]>,
+      string
+    >({
       query: (teacherId) => ({
         url: `/teacher-subjects/teacher/${teacherId}`,
         method: "GET",

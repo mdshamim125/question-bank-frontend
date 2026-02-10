@@ -52,10 +52,10 @@ export default function UserMenu() {
   const handleDashboardRedirect = () => {
     if (
       userInfo?.data?.role === "ADMIN" ||
-      userInfo?.data?.role === "SUPER_ADMIN"
+      userInfo?.data?.role === "SUPERADMIN"
     ) {
       navigate("/admin");
-    } else if (userInfo?.data?.role === "USER") {
+    } else if (userInfo?.data?.role === "TEACHER") {
       navigate("/user"); // default user dashboard
     }
   };
