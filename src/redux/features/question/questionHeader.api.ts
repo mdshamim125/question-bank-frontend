@@ -1,6 +1,7 @@
 // src/redux/features/questionHeader/questionHeader.api.ts
 import { baseApi } from "@/redux/baseApi";
-import type { IResponse, IQuestionHeader } from "@/type";
+import type { IResponse } from "@/type";
+import type { IQuestionHeader } from "@/type/question/questionHeader.type";
 
 export const questionHeaderApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({

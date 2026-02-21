@@ -1,6 +1,7 @@
 // src/redux/features/question/question.api.ts
 import { baseApi } from "@/redux/baseApi";
-import type { IResponse, IQuestion } from "@/type";
+import type { IResponse } from "@/type";
+import type { IQuestion } from "@/type/question/question.api";
 
 export const questionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
