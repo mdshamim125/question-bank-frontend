@@ -66,7 +66,7 @@ export interface IUser {
   id: number;
   name: string;
   email: string;
-  password?: string;     // usually not needed in frontend
+  password?: string; // usually not needed in frontend
   role: "SUPERADMIN" | "ADMIN" | "TEACHER";
   createdAt: string;
   updatedAt: string;
@@ -90,4 +90,18 @@ export interface IQuestion {
   subject: ISubject;
   chapter?: IChapter;
   createdBy: IUser;
+}
+
+export interface IQuestionPaper {
+  id: number;
+  title: string;
+  fileUrl: string;
+  fileType: string;
+  createdBy: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  questions?: IQuestion[];
+  createdAt: string;
 }

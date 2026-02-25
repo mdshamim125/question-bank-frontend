@@ -18,7 +18,18 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import jsPDF from "jspdf";
-import { Document, Packer, Paragraph, TextRun } from "docx";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
+  WidthType,
+  BorderStyle,
+  Table,
+  TableRow,
+  TableCell,
+} from "docx";
 import { saveAs } from "file-saver";
 
 // ─── API Hooks ─────────────────────────────────────────────────────────────
@@ -27,6 +38,7 @@ import { useGetAllHeadersQuery } from "@/redux/features/question/questionHeader.
 import { useGetAllClassesQuery } from "@/redux/features/question/class.api";
 import { useGetAllSubjectsQuery } from "@/redux/features/question/subject.api";
 import { useGetAllChaptersQuery } from "@/redux/features/question/chapter.api";
+import { useCreateQuestionPaperMutation } from "@/redux/features/question/questionPaper.api";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -164,6 +176,12 @@ export default function ManageQuestions() {
     remark: "",
   });
 
+  // const [uploadQuestionPaper, { isLoading: isSaving }] =
+  //   useUploadQuestionPaperMutation();
+
+  const [createQuestionPaper, { isLoading: isSaving }] =
+    useCreateQuestionPaperMutation();
+
   // ─── Derived filtered dropdown data ──────────────────────────────────────
 
   const filteredSubjects = allSubjects.filter(
@@ -228,262 +246,381 @@ export default function ManageQuestions() {
     return "No preview available";
   };
 
-  // ─── Generators (add your full implementation here) ───────────────────────
+  const generatePDF = () => {
+    if (selectedQuestions.length === 0) {
+      alert("Please select at least one question first.");
+      return;
+    }
 
-  // const generatePDF = () => {
-  //   if (selectedQuestions.length === 0) return;
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
 
-  //   const doc = new jsPDF("p", "mm", "a4");
+    // ── Optional: Add Bangla font (uncomment & configure if needed) ──────────
+    /*
+  // 1. Convert .ttf → .js using https://peckconsulting.s3.amazonaws.com/fontconverter/fontconverter.html
+  // 2. Save as e.g. SolaimanLipi-normal.js
+  // 3. import './fonts/SolaimanLipi-normal.js';   // at top of file
+  // Then:
+  doc.addFont("SolaimanLipi-normal", "SolaimanLipi", "normal");
+  doc.setFont("SolaimanLipi");
+  */
 
-  //   // Use built-in font
-  //   doc.setFont("helvetica", "bold");
-  //   doc.setFontSize(16);
-  //   doc.text(header.schoolName || "School Name", 105, 15, { align: "center" });
+    // Default font (Helvetica) – Bangla will be broken
+    doc.setFont("helvetica");
+    doc.setFontSize(16);
 
-  //   doc.setFontSize(12);
-  //   doc.setFont("helvetica", "normal");
-  //   doc.text(
-  //     `${header.examType || "Examination"} | Class: ${header.className || ""}`,
-  //     105,
-  //     22,
-  //     { align: "center" },
-  //   );
-  //   doc.text(
-  //     `Subject: ${header.subject || ""} | Time: ${header.duration} | Full Marks: ${header.fullMark}`,
-  //     105,
-  //     28,
-  //     { align: "center" },
-  //   );
+    // Header
+    doc.text(header.schoolName || "School Name", 105, 15, { align: "center" });
+    doc.setFontSize(12);
+    doc.text(
+      `${header.examType || "Examination"} | Class: ${header.className || ""} | Subject: ${header.subject || ""}`,
+      105,
+      25,
+      { align: "center" },
+    );
+    doc.text(
+      `Time: ${header.duration || "—"} | Full Marks: ${header.fullMark || "—"}`,
+      105,
+      32,
+      { align: "center" },
+    );
 
-  //   let y = 40;
-  //   selectedQuestions.forEach((q, i) => {
-  //     doc.setFont("helvetica", "bold");
-  //     doc.setFontSize(12);
-  //     doc.text(`${i + 1}. `, 10, y);
-  //     y += 6;
+    if (header.remark) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "italic");
+      doc.text(header.remark, 105, 40, { align: "center", maxWidth: 180 });
+    }
 
-  //     if (q.type === "SRIJONSHIL" && q.srijonshil) {
-  //       doc.setFont("helvetica", "normal");
-  //       doc.text(q.srijonshil.prompt, 18, y);
-  //       y += 8;
-  //       q.srijonshil.subQuestions.forEach((sq, idx) => {
-  //         doc.text(
-  //           `(${String.fromCharCode(97 + idx)}) ${sq.questionText}  [${sq.questionMark}]`,
-  //           22,
-  //           y,
-  //         );
-  //         y += 7;
-  //       });
-  //     } else if (q.type === "OBJECTIVE" && q.objective) {
-  //       doc.text(q.objective.questionText, 18, y);
-  //       y += 8;
-  //       doc.setFontSize(11);
-  //       q.objective.options.forEach((opt, idx) => {
-  //         doc.text(`${String.fromCharCode(97 + idx)}. ${opt.text}`, 25, y);
-  //         y += 6;
-  //       });
-  //     } else if (q.type === "ANAHOTE" && q.anahote) {
-  //       doc.text(q.anahote.questionText, 18, y);
-  //       y += 8;
-  //       doc.setFont("helvetica", "italic");
-  //       doc.setFontSize(10);
-  //       doc.text(`[Marks: ${q.anahote.questionMark}]`, 25, y);
-  //       y += 6;
-  //     }
-  //     y += 8;
-  //     if (y > 270) {
-  //       doc.addPage();
-  //       y = 20;
-  //     }
-  //   });
+    let y = header.remark ? 55 : 45;
 
-  //   doc.save("question-paper.pdf");
-  // };
+    // Questions
+    selectedQuestions.forEach((q, index) => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
 
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(`${index + 1}.`, 15, y);
+      y += 7;
 
-  // const generateDOCX = async () => {
-  //   if (selectedQuestions.length === 0) {
-  //     alert("Please select at least one question");
-  //     return;
-  //   }
+      const mainText =
+        q.type === "SRIJONSHIL"
+          ? q.srijonshil?.prompt
+          : q.type === "OBJECTIVE"
+            ? q.objective?.questionText
+            : q.anahote?.questionText || "";
 
-  //   const children: Paragraph[] = [
-  //     new Paragraph({
-  //       children: [
-  //         new TextRun({
-  //           text: header.schoolName || "School Name",
-  //           bold: true,
-  //           size: 32,
-  //         }),
-  //       ],
-  //       alignment: "center",
-  //     }),
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
 
-  //     new Paragraph({
-  //       text: `${header.examType || "Examination"} | Class ${header.className || ""}`,
-  //       alignment: "center",
-  //     }),
+      // Split long question text manually (very basic wrap)
+      const lines = doc.splitTextToSize(mainText, 170);
+      doc.text(lines, 22, y);
+      y += lines.length * 6 + 4;
 
-  //     new Paragraph({
-  //       text: `Subject: ${header.subject || ""} | Time: ${header.duration} | Marks: ${header.fullMark}`,
-  //       alignment: "center",
-  //     }),
+      // ── OBJECTIVE (MCQ) ───────────────────────────────────────────────────
+      if (q.type === "OBJECTIVE" && q.objective?.options?.length) {
+        doc.setFontSize(10);
+        q.objective.options.forEach((opt, i) => {
+          const letter = String.fromCharCode(97 + i);
+          doc.text(`${letter}. ${opt.text}`, 28, y);
+          y += 6;
+        });
+        y += 4;
+      }
 
-  //     new Paragraph(""), // spacer
-  //   ];
+      // ── SRIJONSHIL (Creative) ─────────────────────────────────────────────
+      else if (q.type === "SRIJONSHIL" && q.srijonshil?.subQuestions?.length) {
+        doc.setFontSize(10);
+        q.srijonshil.subQuestions.forEach((sq, i) => {
+          const letter = String.fromCharCode(97 + i);
+          const markText = sq.questionMark ? ` [${sq.questionMark}]` : "";
+          const subLines = doc.splitTextToSize(
+            `${letter}) ${sq.questionText}${markText}`,
+            160,
+          );
+          doc.text(subLines, 28, y);
+          y += subLines.length * 5.5 + 2;
+        });
+        y += 6;
+      }
 
-  //   selectedQuestions.forEach((q, i) => {
-  //     const mainText =
-  //       q.type === "SRIJONSHIL"
-  //         ? q.srijonshil?.prompt
-  //         : q.type === "OBJECTIVE"
-  //           ? q.objective?.questionText
-  //           : q.anahote?.questionText || "";
+      // ── ANAHOTE (Short answer) ────────────────────────────────────────────
+      else if (q.type === "ANAHOTE" && q.anahote) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(10);
+        doc.text(`[Marks: ${q.anahote.questionMark}]`, 28, y);
+        y += 10;
+      }
 
-  //     children.push(
-  //       new Paragraph({
-  //         text: `${i + 1}. ${mainText || ""}`,
-  //         spacing: { after: 200 },
-  //       }),
+      y += 8; // spacing between questions
+    });
+
+    doc.save(`${header.examType || "Question"}-Paper.pdf`);
+  };
+
+  // ─── DOCX Generator ─────────────────────────────
+
+  const generateDOCX = async () => {
+    if (selectedQuestions.length === 0) {
+      alert("Please select at least one question first.");
+      return;
+    }
+
+    const children: (Paragraph | Table)[] = [];
+
+    // ── Header ───────────────────────────────────────────────────────────────
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: header.schoolName ?? "School Name",
+            bold: true,
+            size: 32,
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+      }),
+    );
+
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `${header.examType ?? "Examination"} Question Paper`,
+            bold: true,
+            size: 28,
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 },
+      }),
+    );
+
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `Class: ${header.className ?? "—"} | Subject: ${header.subject ?? "—"} | Time: ${header.duration ?? "—"} | Marks: ${header.fullMark ?? "—"}`,
+            size: 24,
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 },
+      }),
+    );
+
+    if (header.remark) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: header.remark, italics: true, size: 22 }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 600 },
+        }),
+      );
+    }
+
+    // ── Questions ────────────────────────────────────────────────────────────
+    selectedQuestions.forEach((q, index) => {
+      const mainText =
+        q.type === "SRIJONSHIL"
+          ? (q.srijonshil?.prompt ?? "")
+          : q.type === "OBJECTIVE"
+            ? (q.objective?.questionText ?? "")
+            : (q.anahote?.questionText ?? "No question text");
+
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `${index + 1}. ${mainText}`, bold: true }),
+          ],
+          spacing: { after: 200 },
+        }),
+      );
+
+      // OBJECTIVE → MCQ options as simple table (2 columns)
+      if (q.type === "OBJECTIVE" && q.objective?.options?.length) {
+        const rows: TableRow[] = [];
+        const opts = q.objective.options;
+
+        for (let i = 0; i < opts.length; i += 2) {
+          const cells: TableCell[] = [];
+
+          cells.push(
+            new TableCell({
+              children: [
+                new Paragraph(
+                  `${String.fromCharCode(97 + i)}. ${opts[i].text}`,
+                ),
+              ],
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.NONE },
+              },
+            }),
+          );
+
+          if (i + 1 < opts.length) {
+            cells.push(
+              new TableCell({
+                children: [
+                  new Paragraph(
+                    `${String.fromCharCode(97 + i + 1)}. ${opts[i + 1].text}`,
+                  ),
+                ],
+                borders: {
+                  top: { style: BorderStyle.NONE },
+                  bottom: { style: BorderStyle.NONE },
+                  left: { style: BorderStyle.NONE },
+                  right: { style: BorderStyle.NONE },
+                },
+              }),
+            );
+          }
+
+          rows.push(new TableRow({ children: cells }));
+        }
+
+        children.push(
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows,
+          }),
+        );
+      }
+
+      // SRIJONSHIL sub-questions
+      if (q.type === "SRIJONSHIL" && q.srijonshil?.subQuestions?.length) {
+        q.srijonshil.subQuestions.forEach((sq, i) => {
+          const mark = sq.questionMark ? ` [${sq.questionMark}]` : "";
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun(
+                  `${String.fromCharCode(97 + i)}) ${sq.questionText}${mark}`,
+                ),
+              ],
+              indent: { left: 720 },
+            }),
+          );
+        });
+      }
+
+      // ANAHOTE marks
+      if (q.type === "ANAHOTE" && q.anahote) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `[Marks: ${q.anahote.questionMark}]`,
+                italics: true,
+              }),
+            ],
+            indent: { left: 720 },
+          }),
+        );
+      }
+
+      children.push(new Paragraph({ text: "", spacing: { after: 400 } }));
+    });
+
+    const doc = new Document({
+      sections: [{ children }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${header.examType ?? "Question"}-Paper.docx`);
+  };
+
+  // ─── Save Question Paper ─────────────────────────────────────
+  // const handleSavePaper = async () => {
+  //   if (selectedQuestions.length === 0)
+  //     return alert("Select at least one question.");
+
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("title", header.schoolName || "Generated Paper");
+  //     formData.append("userId", "1"); // replace with logged-in user ID
+  //     formData.append(
+  //       "questionIds",
+  //       JSON.stringify(selectedQuestions.map((q) => q.id)),
   //     );
 
-  //     if (q.type === "SRIJONSHIL" && q.srijonshil) {
-  //       q.srijonshil.subQuestions.forEach((sq, idx) => {
-  //         children.push(
-  //           new Paragraph({
-  //             text: `(${String.fromCharCode(97 + idx)}) ${sq.questionText} [${sq.questionMark}]`,
-  //             indent: { left: 720 },
-  //           }),
-  //         );
-  //       });
-  //     } else if (q.type === "OBJECTIVE" && q.objective) {
-  //       q.objective.options.forEach((opt, idx) => {
-  //         children.push(
-  //           new Paragraph({
-  //             text: `${String.fromCharCode(97 + idx)}. ${opt.text}`,
-  //             indent: { left: 1080 },
-  //           }),
-  //         );
-  //       });
-  //     } else if (q.type === "ANAHOTE" && q.anahote) {
-  //       children.push(
-  //         new Paragraph({
-  //           text: `[Marks: ${q.anahote.questionMark}]`,
-  //           italic: true,
-  //         }),
-  //       );
-  //     }
-
-  //     children.push(new Paragraph("")); // spacer between questions
-  //   });
-
-  //   const doc = new Document({
-  //     sections: [{ children }],
-  //   });
-
-  //   const blob = await Packer.toBlob(doc);
-  //   saveAs(blob, "question-paper.docx");
+  //     const response = await uploadQuestionPaper(formData).unwrap();
+  //     alert(`Paper saved! ID: ${response.data.id}`);
+  //     setSelectedQuestions([]);
+  //     setHeader({
+  //       schoolName: "",
+  //       location: "",
+  //       className: "",
+  //       subject: "",
+  //       examType: "",
+  //       duration: "",
+  //       fullMark: "",
+  //       remark: "",
+  //     });
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert("Failed to save paper.");
+  //   }
   // };
 
+  const handleSavePaper = async () => {
+    if (selectedQuestions.length === 0)
+      return alert("Select at least one question.");
 
-  const generatePDF = () => {
-  if (selectedType === "all") {
-    alert("Please select a Question Type first");
-    return;
-  }
+    // console.log(selectedQuestions);
 
-  const questions = filteredQuestions; // only selected type
+    try {
+      const payload = {
+        title: `${header.examType || "Question Paper"} - ${header.className}`,
+        header: {
+          schoolName: header.schoolName,
+          location: header.location,
+          className: header.className,
+          subject: header.subject,
+          examType: header.examType,
+          duration: header.duration,
+          fullMark: Number(header.fullMark),
+          remark: header.remark,
+        },
+        questionIds: selectedQuestions.map((q) => q.id),
+      };
 
-  if (questions.length === 0) {
-    alert("No questions found for this type");
-    return;
-  }
+      console.log(payload);
 
-  const doc = new jsPDF("p", "mm", "a4");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(header.schoolName || "School Name", 105, 15, { align: "center" });
+      const res = await createQuestionPaper(payload).unwrap();
 
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "normal");
-  doc.text(`${selectedType} Question Paper`, 105, 22, { align: "center" });
+      console.log(res);
 
-  let y = 40;
+      alert(`✅ Paper saved successfully! ID: ${res.data.id}`);
 
-  questions.forEach((q, i) => {
-    doc.setFont("helvetica", "bold");
-    doc.text(`${i + 1}.`, 10, y);
-    y += 6;
-
-    if (q.type === "OBJECTIVE" && q.objective) {
-      doc.text(q.objective.questionText, 18, y);
-      y += 8;
-
-      q.objective.options.forEach((opt, idx) => {
-        doc.text(`${String.fromCharCode(97 + idx)}. ${opt.text}`, 25, y);
-        y += 6;
+      // Reset
+      setSelectedQuestions([]);
+      setHeader({
+        schoolName: "",
+        location: "",
+        className: "",
+        subject: "",
+        examType: "",
+        duration: "",
+        fullMark: "",
+        remark: "",
       });
+    } catch (err: any) {
+      console.error("Save paper error:", err);
+      alert(err?.data?.message || "Failed to save paper");
     }
-
-    if (q.type === "SRIJONSHIL" && q.srijonshil) {
-      doc.text(q.srijonshil.prompt, 18, y);
-      y += 8;
-
-      q.srijonshil.subQuestions.forEach((sq, idx) => {
-        doc.text(
-          `(${String.fromCharCode(97 + idx)}) ${sq.questionText} [${sq.questionMark}]`,
-          22,
-          y,
-        );
-        y += 6;
-      });
-    }
-
-    if (q.type === "ANAHOTE" && q.anahote) {
-      doc.text(q.anahote.questionText, 18, y);
-      y += 6;
-      doc.text(`[Marks: ${q.anahote.questionMark}]`, 22, y);
-      y += 6;
-    }
-
-    y += 8;
-    if (y > 270) {
-      doc.addPage();
-      y = 20;
-    }
-  });
-
-  doc.save(`${selectedType}-question-paper.pdf`);
-};
-
-
-const generateDOCX = async () => {
-  if (selectedType === "all") {
-    alert("Please select a Question Type first");
-    return;
-  }
-
-  const questions = filteredQuestions;
-  if (questions.length === 0) return;
-
-  const children: Paragraph[] = [];
-
-  questions.forEach((q, i) => {
-    const text =
-      q.type === "OBJECTIVE"
-        ? q.objective?.questionText
-        : q.type === "SRIJONSHIL"
-        ? q.srijonshil?.prompt
-        : q.anahote?.questionText;
-
-    children.push(new Paragraph(`${i + 1}. ${text}`));
-  });
-
-  const doc = new Document({ sections: [{ children }] });
-  const blob = await Packer.toBlob(doc);
-  saveAs(blob, `${selectedType}-question-paper.docx`);
-};
-
+  };
 
   const isLoading =
     qLoading || classesLoading || subjectsLoading || chaptersLoading;
@@ -786,7 +923,7 @@ const generateDOCX = async () => {
         </CardContent>
       </Card>
 
-      {/* Export Actions */}
+      {/* Export Actions
       <div className="flex justify-end gap-4 sticky bottom-6 bg-background/80 backdrop-blur-sm p-4 -mx-6 border-t">
         <Button
           size="lg"
@@ -803,361 +940,38 @@ const generateDOCX = async () => {
         >
           Generate DOCX
         </Button>
+      </div> */}
+      {/* Export & Save Actions */}
+      <div className="flex justify-end gap-4 sticky bottom-6 bg-background/80 backdrop-blur-sm p-4 -mx-6 border-t">
+        <Button
+          size="lg"
+          onClick={handleSavePaper}
+          disabled={selectedQuestions.length === 0 || isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Paper"}
+        </Button>
+        <Button
+          size="lg"
+          onClick={() => {
+            /* call your generatePDF */
+            generatePDF();
+          }}
+          disabled={selectedQuestions.length === 0}
+        >
+          Generate PDF
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={() => {
+            /* call your generateDOCX */
+            generateDOCX();
+          }}
+          disabled={selectedQuestions.length === 0}
+        >
+          Generate DOCX
+        </Button>
       </div>
     </div>
   );
 }
-
-
-
-
-
-// /* eslint-disable @typescript-eslint/no-explicit-any */
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// import { Input } from "@/components/ui/input";
-// import { Textarea } from "@/components/ui/textarea";
-// import { Checkbox } from "@/components/ui/checkbox";
-// import { Button } from "@/components/ui/button";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-// import { Label } from "@/components/ui/label";
-// import { Badge } from "@/components/ui/badge";
-// import { Skeleton } from "@/components/ui/skeleton";
-// import pdfMake from "pdfmake/build/pdfmake";
-// import pdfFonts from "pdfmake/build/vfs_fonts";
-// import { banglaFonts } from "../pdf/fonts"; // Your Base64 font file
-// import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, VerticalAlign, BorderStyle } from "docx";
-// import { saveAs } from "file-saver";
-
-// // ─── API Hooks ─────────────────────────────────────────────────────────────
-// import { useGetAllQuestionsQuery } from "@/redux/features/question/question.api";
-// import { useGetAllHeadersQuery } from "@/redux/features/question/questionHeader.api";
-// import { useGetAllClassesQuery } from "@/redux/features/question/class.api";
-// import { useGetAllSubjectsQuery } from "@/redux/features/question/subject.api";
-// import { useGetAllChaptersQuery } from "@/redux/features/question/chapter.api";
-
-// // ─── Types ────────────────────────────────────────────────────────────────
-// interface IOption {
-//   id: number;
-//   text: string;
-//   objectiveQuestionId: number;
-// }
-
-// interface IObjective {
-//   id: number;
-//   questionText: string;
-//   questionMark: number;
-//   questionId: number;
-//   answerOptionId: number;
-//   options: IOption[];
-// }
-
-// interface IAnahote {
-//   id: number;
-//   questionText: string;
-//   questionMark: number;
-//   questionId: number;
-// }
-
-// interface ISrijonshilSubQuestion {
-//   id: number;
-//   srijonshilQuestionId: number;
-//   questionText: string;
-//   questionMark: number;
-//   hint: string | null;
-// }
-
-// interface ISrijonshil {
-//   id: number;
-//   prompt: string;
-//   difficulty: string;
-//   questionId: number;
-//   subQuestions: ISrijonshilSubQuestion[];
-// }
-
-// export interface IQuestion {
-//   id: number;
-//   type: "OBJECTIVE" | "ANAHOTE" | "SRIJONSHIL";
-//   subjectId: number;
-//   chapterId?: number;
-//   classId: number;
-//   createdById: number;
-//   createdAt: string;
-//   updatedAt: string;
-//   objective: IObjective | null;
-//   anahote: IAnahote | null;
-//   srijonshil: ISrijonshil | null;
-//   class?: { id: number; name: string; createdAt: string; updatedAt: string };
-//   subject?: {
-//     id: number;
-//     name: string;
-//     classId: number;
-//     createdAt: string;
-//     updatedAt: string;
-//   };
-//   chapter?: {
-//     id: number;
-//     name: string;
-//     classId: number;
-//     subjectId: number;
-//     createdAt: string;
-//     updatedAt: string;
-//   };
-//   createdBy?: {
-//     id: number;
-//     name: string;
-//     email: string;
-//     role: string;
-//     createdAt: string;
-//     updatedAt: string;
-//   };
-// }
-
-// interface IQuestionHeader {
-//   id: number;
-//   schoolName: string;
-//   location: string;
-//   className: string;
-//   subject: string;
-//   examType: string;
-//   duration: string;
-//   fullMark: number;
-//   remark?: string;
-// }
-
-// // ─── Component ─────────────────────────────────────────────────────────────
-// export default function ManageQuestions() {
-//   // ─── Data Fetching ───────────────────────────────────────────────────────
-//   const { data: questionsRes, isLoading: qLoading } = useGetAllQuestionsQuery();
-//   const { data: headersRes } = useGetAllHeadersQuery();
-//   const { data: classesRes, isLoading: classesLoading } = useGetAllClassesQuery(
-//     { page: 1, limit: 100 },
-//   );
-//   const { data: subjectsRes, isLoading: subjectsLoading } = useGetAllSubjectsQuery();
-//   const { data: chaptersRes, isLoading: chaptersLoading } = useGetAllChaptersQuery();
-
-//   const allQuestions = questionsRes?.data ?? [];
-//   const savedHeaders = headersRes?.data ?? [];
-//   const allClasses = classesRes?.data ?? [];
-//   const allSubjects = subjectsRes?.data ?? [];
-//   const allChapters = chaptersRes?.data ?? [];
-
-//   // ─── State ────────────────────────────────────────────────────────────────
-//   const [selectedQuestions, setSelectedQuestions] = useState<IQuestion[]>([]);
-//   const [selectedHeader, setSelectedHeader] = useState<IQuestionHeader | null>(null);
-//   const [selectedClassId, setSelectedClassId] = useState<string>("all");
-//   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("all");
-//   const [selectedChapterId, setSelectedChapterId] = useState<string>("all");
-//   const [selectedType, setSelectedType] = useState<"OBJECTIVE" | "ANAHOTE" | "SRIJONSHIL" | "all">("all");
-
-//   const [header, setHeader] = useState({
-//     schoolName: "",
-//     location: "",
-//     className: "",
-//     subject: "",
-//     examType: "",
-//     duration: "",
-//     fullMark: "",
-//     remark: "",
-//   });
-
-//   // ─── Derived filtered dropdown data ──────────────────────────────────────
-//   const filteredSubjects = allSubjects.filter(
-//     (s) => selectedClassId === "all" || s.classId === Number(selectedClassId),
-//   );
-
-//   const filteredChapters = allChapters.filter(
-//     (ch) =>
-//       (selectedSubjectId === "all" || ch.subjectId === Number(selectedSubjectId)) &&
-//       (selectedClassId === "all" || ch.classId === Number(selectedClassId)),
-//   );
-
-//   // ─── Filtered questions ───────────────────────────────────────────────────
-//   const filteredQuestions = allQuestions.filter((q) => {
-//     if (selectedClassId !== "all" && q.classId !== Number(selectedClassId)) return false;
-//     if (selectedSubjectId !== "all" && q.subjectId !== Number(selectedSubjectId)) return false;
-//     if (selectedChapterId !== "all" && q.chapterId !== Number(selectedChapterId)) return false;
-//     if (selectedType !== "all" && q.type !== selectedType) return false;
-//     return true;
-//   });
-
-//   // ─── Header sync ──────────────────────────────────────────────────────────
-//   useEffect(() => {
-//     if (selectedHeader) {
-//       setHeader({
-//         schoolName: selectedHeader.schoolName,
-//         location: selectedHeader.location,
-//         className: selectedHeader.className,
-//         subject: selectedHeader.subject,
-//         examType: selectedHeader.examType,
-//         duration: selectedHeader.duration,
-//         fullMark: String(selectedHeader.fullMark),
-//         remark: selectedHeader.remark || "",
-//       });
-//     }
-//   }, [selectedHeader]);
-
-//   // ─── Helpers ──────────────────────────────────────────────────────────────
-//   const getQuestionPreview = (q: IQuestion): string => {
-//     if (q.type === "SRIJONSHIL" && q.srijonshil) {
-//       return (q.srijonshil.prompt?.slice(0, 80) ?? "") + "...";
-//     }
-//     if (q.type === "OBJECTIVE" && q.objective) {
-//       return (q.objective.questionText?.slice(0, 80) ?? "") + "...";
-//     }
-//     if (q.type === "ANAHOTE" && q.anahote) {
-//       return (q.anahote.questionText?.slice(0, 80) ?? "") + "...";
-//     }
-//     return "No preview available";
-//   };
-
-//   // ─── Generators ───────────────────────────────────────────────────────────
-//   const generatePDF = () => {
-//     if (selectedQuestions.length === 0) {
-//       alert("Please select at least one question");
-//       return;
-//     }
-
-//     // Setup font for Bangla
-//     pdfMake.vfs = { ...pdfFonts.pdfMake.vfs, ...banglaFonts };
-//     pdfMake.fonts = {
-//       SolaimanLipi: {
-//         normal: 'SolaimanLipi.ttf',
-//         bold: 'SolaimanLipi-Bold.ttf',
-//       },
-//     };
-
-//     const content = [
-//       { text: header.schoolName || "School Name", style: 'schoolName' },
-//       { text: `${selectedType} Question Paper` || "Question Paper", style: 'type' },
-//       { text: `${header.examType || "Examination"} | Class: ${header.className || ""} | Subject: ${header.subject || ""}`, style: 'details' },
-//       { text: `Time: ${header.duration || ""} | Full Marks: ${header.fullMark || ""}`, style: 'details' },
-//       { text: header.remark || "", style: 'remark' },
-//     ];
-
-//     selectedQuestions.forEach((q, i) => {
-//       const mainText =
-//         q.type === "SRIJONSHIL" ? q.srijonshil?.prompt :
-//         q.type === "OBJECTIVE" ? q.objective?.questionText :
-//         q.anahote?.questionText || "";
-
-//       content.push({ text: `${i + 1}. ${mainText}`, style: 'question' });
-
-//       if (q.type === "SRIJONSHIL" && q.srijonshil) {
-//         q.srijonshil.subQuestions.forEach((sq, idx) => {
-//           content.push({ text: `(${String.fromCharCode(97 + idx)}) ${sq.questionText} [${sq.questionMark}]`, style: 'subQuestion' });
-//         });
-//       } else if (q.type === "OBJECTIVE" && q.objective) {
-//         const optionsTable = {
-//           table: {
-//             widths: ['*', '*'],
-//             body: [
-//               [`a. ${q.objective.options[0]?.text || ""}`, `b. ${q.objective.options[1]?.text || ""}`],
-//               [`c. ${q.objective.options[2]?.text || ""}`, `d. ${q.objective.options[3]?.text || ""}`],
-//             ],
-//           },
-//           layout: 'noBorders',
-//           margin: [0, 5, 0, 10],
-//         };
-//         content.push(optionsTable);
-//       } else if (q.type === "ANAHOTE" && q.anahote) {
-//         content.push({ text: `[Marks: ${q.anahote.questionMark}]`, style: 'marks' });
-//       }
-//     });
-
-//     const docDefinition = {
-//       content,
-//       defaultStyle: { font: "SolaimanLipi" },
-//       styles: {
-//         schoolName: { fontSize: 16, bold: true, alignment: "center", margin: [0, 0, 0, 5] },
-//         type: { fontSize: 14, bold: true, alignment: "center", margin: [0, 0, 0, 5] },
-//         details: { fontSize: 12, alignment: "center", margin: [0, 0, 0, 5] },
-//         remark: { fontSize: 10, italics: true, alignment: "center", margin: [0, 0, 0, 20] },
-//         question: { fontSize: 12, bold: true, margin: [0, 10, 0, 5] },
-//         subQuestion: { fontSize: 12, margin: [10, 5, 0, 5] },
-//         marks: { fontSize: 10, italics: true, margin: [10, 5, 0, 10] },
-//       },
-//     };
-
-//     pdfMake.createPdf(docDefinition).download(`${selectedType || "question"}-paper.pdf`);
-//   };
-
-//   const generateDOCX = async () => {
-//     if (selectedQuestions.length === 0) {
-//       alert("Please select at least one question");
-//       return;
-//     }
-
-//     const children = [
-//       new Paragraph({ text: header.schoolName || "School Name", alignment: AlignmentType.CENTER, bold: true, size: 32 }),
-//       new Paragraph({ text: `${selectedType} Question Paper` || "Question Paper", alignment: AlignmentType.CENTER, bold: true, size: 28 }),
-//       new Paragraph({ text: `${header.examType || "Examination"} | Class: ${header.className || ""} | Subject: ${header.subject || ""}`, alignment: AlignmentType.CENTER, size: 24 }),
-//       new Paragraph({ text: `Time: ${header.duration || ""} | Full Marks: ${header.fullMark || ""}`, alignment: AlignmentType.CENTER, size: 24 }),
-//       new Paragraph({ text: header.remark || "", alignment: AlignmentType.CENTER, italic: true, size: 20 }),
-//     ];
-
-//     selectedQuestions.forEach((q, i) => {
-//       const mainText =
-//         q.type === "SRIJONSHIL" ? q.srijonshil?.prompt :
-//         q.type === "OBJECTIVE" ? q.objective?.questionText :
-//         q.anahote?.questionText || "";
-
-//       children.push(
-//         new Paragraph({ text: `${i + 1}. ${mainText}`, bold: true }),
-//       );
-
-//       if (q.type === "SRIJONSHIL" && q.srijonshil) {
-//         q.srijonshil.subQuestions.forEach((sq, idx) => {
-//           children.push(
-//             new Paragraph({
-//               text: `(${String.fromCharCode(97 + idx)}) ${sq.questionText} [${sq.questionMark}]`,
-//               indent: { left: 720 },
-//             }),
-//           );
-//         });
-//       } else if (q.type === "OBJECTIVE" && q.objective) {
-//         const table = new Table({
-//           rows: [
-//             new TableRow({
-//               children: [
-//                 new TableCell({ content: new Paragraph(`a. ${q.objective.options[0]?.text || ""}`), borders: { top: BorderStyle.NONE, bottom: BorderStyle.NONE, left: BorderStyle.NONE, right: BorderStyle.NONE } }),
-//                 new TableCell({ content: new Paragraph(`b. ${q.objective.options[1]?.text || ""}`), borders: { top: BorderStyle.NONE, bottom: BorderStyle.NONE, left: BorderStyle.NONE, right: BorderStyle.NONE } }),
-//               ],
-//             }),
-//             new TableRow({
-//               children: [
-//                 new TableCell({ content: new Paragraph(`c. ${q.objective.options[2]?.text || ""}`), borders: { top: BorderStyle.NONE, bottom: BorderStyle.NONE, left: BorderStyle.NONE, right: BorderStyle.NONE } }),
-//                 new TableCell({ content: new Paragraph(`d. ${q.objective.options[3]?.text || ""}`), borders: { top: BorderStyle.NONE, bottom: BorderStyle.NONE, left: BorderStyle.NONE, right: BorderStyle.NONE } }),
-//               ],
-//             }),
-//           ],
-//           width: { size: 100, type: WidthType.PERCENTAGE },
-//         });
-//         children.push(table);
-//       } else if (q.type === "ANAHOTE" && q.anahote) {
-//         children.push(
-//           new Paragraph({
-//             text: `[Marks: ${q.anahote.questionMark}]`,
-//             italic: true,
-//             indent: { left: 720 },
-//           }),
-//         );
-//       }
-//     });
-
-//     const doc = new Document({ sections: [{ children }] });
-//     const blob = await Packer.toBlob(doc);
-//     saveAs(blob, `${selectedType || "question"}-paper.docx`);
-//   };
-
-//   const isLoading = qLoading || classesLoading || subjectsLoading || chaptersLoading;
-
-

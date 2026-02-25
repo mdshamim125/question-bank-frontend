@@ -14,6 +14,7 @@ export const baseApi = createApi({
     "Chapter",
     "TeacherSubject",
     "QuestionHeader",
+    "QuestionPaper"
   ],
 });
 

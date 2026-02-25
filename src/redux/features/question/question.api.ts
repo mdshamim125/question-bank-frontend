@@ -1,7 +1,7 @@
 // src/redux/features/question/question.api.ts
 import { baseApi } from "@/redux/baseApi";
 import type { IResponse } from "@/type";
-import type { IQuestion } from "@/type/question/question.api";
+import type { IQuestion, IQuestionPaper } from "@/type/question/question.type";
 
 export const questionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -27,7 +27,10 @@ export const questionApi = baseApi.injectEndpoints({
       }),
       providesTags: ["Question"],
     }),
-    updateQuestion: builder.mutation<IResponse<IQuestion>, { id: string; data: Partial<IQuestion> }>({
+    updateQuestion: builder.mutation<
+      IResponse<IQuestion>,
+      { id: string; data: Partial<IQuestion> }
+    >({
       query: ({ id, data }) => ({
         url: `/questions/${id}`,
         method: "PATCH",
@@ -42,6 +45,23 @@ export const questionApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["Question"],
     }),
+
+    // ---------- QUESTION PAPERS ----------
+    uploadQuestionPaper: builder.mutation<IResponse<IQuestionPaper>, FormData>({
+      query: (formData) => ({
+        url: "/questions/question-papers",
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["QuestionPaper"],
+    }),
+    getAllQuestionPapers: builder.query<IResponse<IQuestionPaper[]>, void>({
+      query: () => ({
+        url: "/question-papers",
+        method: "GET",
+      }),
+      providesTags: ["QuestionPaper"],
+    }),
   }),
 });
 
@@ -51,4 +71,6 @@ export const {
   useGetQuestionByIdQuery,
   useUpdateQuestionMutation,
   useDeleteQuestionMutation,
+  useUploadQuestionPaperMutation,
+  useGetAllQuestionPapersQuery,
 } = questionApi;
