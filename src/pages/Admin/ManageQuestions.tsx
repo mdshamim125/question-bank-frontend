@@ -39,6 +39,7 @@ import { useGetAllClassesQuery } from "@/redux/features/question/class.api";
 import { useGetAllSubjectsQuery } from "@/redux/features/question/subject.api";
 import { useGetAllChaptersQuery } from "@/redux/features/question/chapter.api";
 import { useCreateQuestionPaperMutation } from "@/redux/features/question/questionPaper.api";
+import AddQuestionModal from "@/components/modules/admin/AddQuestionModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -629,6 +630,16 @@ export default function ManageQuestions() {
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
+      {/* Top Action Bar */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Add Questions</h1>
+        <AddQuestionModal
+          classes={allClasses}
+          subjects={allSubjects}
+          chapters={allChapters}
+        />
+      </div>
+
       {/* Filters */}
       <Card className="shadow-md">
         <CardHeader>
